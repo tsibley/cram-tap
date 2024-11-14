@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+import xml.etree.ElementTree as ET
+from sys import stdin, stdout
+from textwrap import indent
+
+doc = ET.parse(stdin)
+suite = doc.getroot()
+
+assert suite.tag == "testsuite" and suite.get("name") == "cram"
+
+count = int(suite.get("tests", 0))
+
+print("TAP version 13")
+print(f"1..{count:d}")
+
+escape = lambda text: text.replace("\\", "\\\\").replace("#", "\\#")
+comment = lambda text: indent(text, "# ", lambda line: True)
+
+for i, test in enumerate(suite.findall("./testcase"), 1):
+    if file := test.get("classname"):
+        description = "- " + escape(file)
+    else:
+        description = ""
+
+    if (failure := test.find("failure")) is not None:
+        print("not ok", i, description)
+        print(comment(failure.text))
+
+    elif test.find("skipped") is not None:
+        # Skipped tests in TAP may be ok or not ok, but Cram doesn't tell us.
+        print("ok", i, description, "# SKIP")
+
+    else:
+        assert len(test) == 0
+        print("ok", i, description)

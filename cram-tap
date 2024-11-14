@@ -1,0 +1,62 @@
+#!/bin/bash
+set -euo pipefail
+
+main() {
+    if [[ $# -eq 0 ]]; then
+        exit-with-help
+    fi
+
+    # Validate arguments
+    for arg; do
+        case "$arg" in
+            --help|-h)
+                exit-with-help;;
+
+            --version|-V)
+                exit-with-version;;
+
+            --interactive|-i|--yes|-y|--no|-n)
+                echo "cram's interactivity options (e.g. $1) are not supported under cram-tap" >&2
+                exit 1;;
+
+            --quiet|-q|--verbose|-v|--debug|-d|--xunit-file)
+                echo "cram's output control options (e.g. $1) are not supported under cram-tap" >&2
+                exit 1;;
+        esac
+    done
+
+    # XXX TODO: Maybe unmask cram's exit status depending on if it matches
+    # failed test count?
+    #   -trs, 13 Nov 2024
+    cram "$@" --xunit-file=>("$(dirname "$0")"/cram-xunit-to-tap) >/dev/null || true
+}
+
+exit-with-help() {
+    cram --help | sed -Ee '
+        1s/^Usage: cram /Usage: cram-tap /
+
+        /^Options:/ {
+            i A TAP-emitting Cram.
+            i
+            i cram-tap options:
+            i \ \ -h, --help          show this help message and exit
+            i \ \ -V, --version       show version information and exit
+            i 
+            c cram options:
+        }
+        /\s--(help|version)\s/d                         # takeover help and version
+        /\s--(quiet|verbose|debug|xunit-file=PATH)\s/d  # no output control
+        /\s--(interactive|yes|no)\s/d                   # no interactivity
+    '
+    exit
+}
+
+exit-with-version() {
+    echo "cram-tap (version 0)"
+    echo "Copyright 2024 Thomas Sibley <tom@zulutango.org>"
+    echo
+    cram --version
+    exit
+}
+
+main "$@"
